@@ -16,6 +16,9 @@ namespace MySqlTools
 {
     class Program
     {
+        private static string serviceNamespace = GetSettings("serviceNamespace");
+        private static string dataAccessNamespace = GetSettings("dataAccessNamespace");
+        private static string entityNamespace = GetSettings("entityNamespace");
         static void Main(string[] args)
         {
             Console.WriteLine("启动成功");
@@ -70,12 +73,12 @@ WHERE table_name='{1}' AND table_schema='{0}'", GetSettings("TABLE_SCHEMA"), mod
         {
             var list = new List<string>();
 
-            list.Add("using Ebos.DataAccess;");
-            list.Add("using Ebos.Services.Implement;");
-            list.Add("using Ebos.Services.Interface;");
+            list.Add("using " + dataAccessNamespace + ";");
+            list.Add("using " + serviceNamespace + ".Implement;");
+            list.Add("using " + serviceNamespace + ".Interface;");
             list.Add("using Microsoft.Extensions.DependencyInjection;");
             list.Add("");
-            list.Add("namespace Ebos.Services");
+            list.Add("namespace " + serviceNamespace);
             list.Add("{");
             list.Add("    public class ServiceDIRegister");
             list.Add("    {");
@@ -98,7 +101,7 @@ WHERE table_name='{1}' AND table_schema='{0}'", GetSettings("TABLE_SCHEMA"), mod
             list.Add("    }");
             list.Add("}");
 
-            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Ebos.Services\\", "ServiceDIRegister.cs", list);
+            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Generated\\" + serviceNamespace + "\\", "ServiceDIRegister.cs", list);
             return true;
         }
 
@@ -110,11 +113,11 @@ WHERE table_name='{1}' AND table_schema='{0}'", GetSettings("TABLE_SCHEMA"), mod
         private static bool GeneratedDataAccessDI(List<TableInfoModel> listTable)
         {
             var list = new List<string>();
-            list.Add("using Ebos.DataAccess.Implement;");
-            list.Add("using Ebos.DataAccess.Interface;");
+            list.Add("using " + dataAccessNamespace + ".Implement;");
+            list.Add("using " + dataAccessNamespace + ".Interface;");
             list.Add("using Microsoft.Extensions.DependencyInjection;");
             list.Add("");
-            list.Add("namespace Ebos.DataAccess");
+            list.Add("namespace " + dataAccessNamespace);
             list.Add("{");
             list.Add("    /// <summary>");
             list.Add("    /// 数据访问层 依赖注入注册");
@@ -133,7 +136,7 @@ WHERE table_name='{1}' AND table_schema='{0}'", GetSettings("TABLE_SCHEMA"), mod
             list.Add("    }");
             list.Add("}");
 
-            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Ebos.DataAccess\\", "DataAccessDIRegister.cs", list);
+            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Generated\\" + dataAccessNamespace + "\\", "DataAccessDIRegister.cs", list);
             return true;
         }
 
@@ -152,7 +155,7 @@ WHERE table_name='{1}' AND table_schema='{0}'", GetSettings("TABLE_SCHEMA"), mod
             list.Add("using System;");
             list.Add("using System.Collections.Generic;");
             list.Add("");
-            list.Add("namespace Ebos.Entity.Generated");
+            list.Add("namespace " + entityNamespace + ".Generated");
             list.Add("{");
             list.Add("  public partial class " + tableNameNew);
             list.Add("  {");
@@ -194,7 +197,7 @@ REFERENCED_TABLE_NAME = '{1}';
 
             list.Add("  }");
             list.Add("}");
-            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Generated\\", tableNameNew + ".cs", list);
+            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Generated\\Entity\\", tableNameNew + ".cs", list);
 
             return resFlag;
         }
@@ -206,12 +209,12 @@ REFERENCED_TABLE_NAME = '{1}';
         private static bool GeneratedIBaseServices()
         {
             var list = new List<string>();
-            list.Add("using Ebos.Entity;");
-            list.Add("using Ebos.Entity.Conditions;");
+            list.Add("using " + entityNamespace + ";");
+            list.Add("using " + entityNamespace + ".Conditions;");
             list.Add("using System;");
             list.Add("using System.Collections.Generic;");
             list.Add("");
-            list.Add("namespace Ebos.Services.Interface");
+            list.Add("namespace " + serviceNamespace + ".Interface");
             list.Add("{");
             list.Add("    public interface IBaseService<T1,T2>");
             list.Add("    {");
@@ -241,7 +244,7 @@ REFERENCED_TABLE_NAME = '{1}';
             list.Add("        Boolean Delete(T2 Id1, T3 Id2);");
             list.Add("    }");
             list.Add("}");
-            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Ebos.Services\\Interface\\", "IBaseService.cs", list);
+            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Generated\\" + serviceNamespace + "\\Interface\\", "IBaseService.cs", list);
             return true;
         }
 
@@ -264,9 +267,9 @@ REFERENCED_TABLE_NAME = '{1}';
             var tableNameNew = turnHungary2CamelCase.StartChange(tableName);
             var fileName = tableNameNew.Substring(1, tableNameNew.Length - 1);
             var list = new List<string>();
-            list.Add("using Ebos.Entity.Generated;");
+            list.Add("using " + entityNamespace + ".Generated;");
             list.Add("");
-            list.Add("namespace Ebos.Services.Interface");
+            list.Add("namespace " + serviceNamespace + ".Interface");
             list.Add("{");
             list.Add("    /// <summary>");
             list.Add("    /// 数据库中表[" + tableName + "] 服务层接口文件");
@@ -275,7 +278,7 @@ REFERENCED_TABLE_NAME = '{1}';
             list.Add("    {");
             list.Add("    }");
             list.Add("}");
-            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Ebos.Services\\Interface\\", "I" + fileName + "Service.cs", list);
+            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Generated\\" + serviceNamespace + "\\Interface\\", "I" + fileName + "Service.cs", list);
             return true;
         }
 
@@ -299,14 +302,14 @@ REFERENCED_TABLE_NAME = '{1}';
             var fileName = tableNameNew.Substring(1, tableNameNew.Length - 1); // 如 SysUserInfo
             var fileName1 = fileName.Substring(0, 1).ToLower() + fileName.Substring(1, fileName.Length - 1); // 如 sysUserInfo
             var list = new List<string>();
-            list.Add("using Ebos.DataAccess.Interface;");
-            list.Add("using Ebos.Entity;");
-            list.Add("using Ebos.Entity.Conditions;");
-            list.Add("using Ebos.Entity.Generated;");
-            list.Add("using Ebos.Services.Interface;");
+            list.Add("using " + dataAccessNamespace + ".Interface;");
+            list.Add("using " + entityNamespace + ";");
+            list.Add("using " + entityNamespace + ".Conditions;");
+            list.Add("using " + entityNamespace + ".Generated;");
+            list.Add("using " + serviceNamespace + ".Interface;");
             list.Add("using System.Collections.Generic;");
             list.Add("");
-            list.Add("namespace Ebos.Services.Implement");
+            list.Add("namespace " + serviceNamespace + ".Implement");
             list.Add("{");
             list.Add("    /// <summary>");
             list.Add("    /// 数据库中表[" + tableName + "] 服务层接口实现文件");
@@ -407,7 +410,7 @@ REFERENCED_TABLE_NAME = '{1}';
             list.Add("");
             list.Add("    }");
             list.Add("}");
-            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Ebos.Services\\Implement\\", fileName + "ServiceImpl.cs", list);
+            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Generated\\" + serviceNamespace + "\\Implement\\", fileName + "ServiceImpl.cs", list);
 
             return true;
         }
@@ -420,14 +423,14 @@ REFERENCED_TABLE_NAME = '{1}';
         private static bool GeneratedIBaseDao()
         {
             var list = new List<string>();
-            list.Add("using Ebos.DataAccess.Core;");
-            list.Add("using Ebos.DataAccess.Implement;");
-            list.Add("using Ebos.Entity;");
-            list.Add("using Ebos.Entity.Conditions;");
+            list.Add("using " + dataAccessNamespace + ".Core;");
+            list.Add("using " + dataAccessNamespace + ".Implement;");
+            list.Add("using " + entityNamespace + ";");
+            list.Add("using " + entityNamespace + ".Conditions;");
             list.Add("using System;");
             list.Add("using System.Collections.Generic;");
             list.Add("");
-            list.Add("namespace Ebos.DataAccess.Interface");
+            list.Add("namespace " + dataAccessNamespace + ".Interface");
             list.Add("{");
             list.Add("    public interface IBaseDao<T1, T2> : IDisposable");
             list.Add("    {");
@@ -470,7 +473,7 @@ REFERENCED_TABLE_NAME = '{1}';
             list.Add("        Boolean Delete(T2 Id1, T3 Id2);");
             list.Add("    }");
             list.Add("}");
-            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Ebos.DataAccess\\Interface\\", "IBaseDao.cs", list);
+            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Generated\\" + dataAccessNamespace + "\\Interface\\", "IBaseDao.cs", list);
             return true;
         }
 
@@ -481,10 +484,10 @@ REFERENCED_TABLE_NAME = '{1}';
         private static bool GeneratedBaseDaoImpl()
         {
             var list = new List<string>();
-            list.Add("using Ebos.DataAccess.Core;");
+            list.Add("using " + dataAccessNamespace + ".Core;");
             list.Add("using System;");
             list.Add("");
-            list.Add("namespace Ebos.DataAccess.Implement");
+            list.Add("namespace " + dataAccessNamespace + ".Implement");
             list.Add("{");
             list.Add("    public class BaseDaoImpl : IDisposable");
             list.Add("    {");
@@ -532,7 +535,7 @@ REFERENCED_TABLE_NAME = '{1}';
             list.Add("        }");
             list.Add("    }");
             list.Add("}");
-            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Ebos.DataAccess\\Implement\\", "BaseDaoImpl.cs", list);
+            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Generated\\" + dataAccessNamespace + "\\Implement\\", "BaseDaoImpl.cs", list);
             return true;
         }
 
@@ -555,9 +558,9 @@ REFERENCED_TABLE_NAME = '{1}';
             var tableNameNew = turnHungary2CamelCase.StartChange(tableName);
             var fileName = tableNameNew.Substring(1, tableNameNew.Length - 1);
             var list = new List<string>();
-            list.Add("using Ebos.Entity.Generated;");
+            list.Add("using " + entityNamespace + ".Generated;");
             list.Add("");
-            list.Add("namespace Ebos.DataAccess.Interface");
+            list.Add("namespace " + dataAccessNamespace + ".Interface");
             list.Add("{");
             list.Add("    /// <summary>");
             list.Add("    /// 数据库中表[" + tableName + "] 数据访问层接口文件");
@@ -567,7 +570,7 @@ REFERENCED_TABLE_NAME = '{1}';
             list.Add("    }");
             list.Add("}");
 
-            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Ebos.DataAccess\\Interface\\", "I" + fileName + "Dao.cs", list);
+            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Generated\\" + dataAccessNamespace + "\\Interface\\", "I" + fileName + "Dao.cs", list);
             return true;
         }
 
@@ -591,17 +594,17 @@ REFERENCED_TABLE_NAME = '{1}';
             var fileName = tableNameNew.Substring(1, tableNameNew.Length - 1); // 如 SysUserInfo
             var fileName1 = fileName.Substring(0, 1).ToLower() + fileName.Substring(1, fileName.Length - 1); // 如 sysUserInfo
             var list = new List<string>();
-            list.Add("using Ebos.DataAccess.Core;");
-            list.Add("using Ebos.DataAccess.Interface;");
-            list.Add("using Ebos.Entity;");
-            list.Add("using Ebos.Entity.Conditions;");
-            list.Add("using Ebos.Entity.Generated;");
+            list.Add("using " + dataAccessNamespace + ".Core;");
+            list.Add("using " + dataAccessNamespace + ".Interface;");
+            list.Add("using " + entityNamespace + ";");
+            list.Add("using " + entityNamespace + ".Conditions;");
+            list.Add("using " + entityNamespace + ".Generated;");
             list.Add("using Microsoft.EntityFrameworkCore;");
             list.Add("using System;");
             list.Add("using System.Collections.Generic;");
             list.Add("using System.Linq;");
             list.Add("");
-            list.Add("namespace Ebos.DataAccess.Implement");
+            list.Add("namespace " + dataAccessNamespace + ".Implement");
             list.Add("{");
             list.Add("    /// <summary>");
             list.Add("    /// 数据库中表[" + tableName + "] 服务层接口实现文件");
@@ -681,7 +684,7 @@ REFERENCED_TABLE_NAME = '{1}';
             list.Add("");
             list.Add("    }");
             list.Add("}");
-            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Ebos.DataAccess\\Implement\\", fileName + "DaoImpl.cs", list);
+            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Generated\\" + dataAccessNamespace + "\\Implement\\", fileName + "DaoImpl.cs", list);
             return true;
         }
 
