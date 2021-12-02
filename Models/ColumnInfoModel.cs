@@ -19,6 +19,8 @@ namespace MySqlTools.Models
 
         public string COLUMN_COMMENT { get; set; }
 
+        public string IS_NULLABLE { get; set; }
+
         public string COLUMN_NAME1 { get { return turnHungary2CamelCase.StartChange(this.COLUMN_NAME); } }
     }
 }

@@ -47,11 +47,11 @@ ORDER BY TABLE_NAME;", GetSettings("TABLE_SCHEMA"));
             using (IDbConnection connection = BaseRepository.GetMySqlConnection())
             {
                 var sql = string.Format(@"
-SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, COLUMN_KEY, COLUMN_COMMENT
+SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, COLUMN_KEY, COLUMN_COMMENT, IS_NULLABLE
 FROM INFORMATION_SCHEMA.Columns 
 WHERE table_name='{1}' AND table_schema='{0}'", GetSettings("TABLE_SCHEMA"), model.TABLE_NAME);
                 var listColumn = connection.Query<ColumnInfoModel>(sql).ToList();
-                //GeneratedTableEntity(listColumn, model.TABLE_NAME);
+                GeneratedTableModel(listColumn, model);
                 GeneratedIBaseServices();
                 GeneratedIServices(listColumn, model.TABLE_NAME);
                 GeneratedServicesImpl(listColumn, model.TABLE_NAME);
@@ -223,6 +223,40 @@ REFERENCED_TABLE_NAME = '{1}';
             return resFlag;
         }
 
+        private static bool GeneratedTableModel(List<ColumnInfoModel> listColumn, TableInfoModel table)
+        {
+            var resFlag = true;
+            var tableNameNew = turnHungary2CamelCase.StartChange(table.TABLE_NAME);
+            var fileName = tableNameNew.Substring(1, tableNameNew.Length - 1) + "Model";
+
+            var list = new List<string>();
+            list.Add("using System;");
+            list.Add("");
+            list.Add("namespace " + entityNamespace + ".ViewModel");
+            list.Add("{");
+            list.Add("    /// <summary>");
+            list.Add("    /// " + table.TABLE_COMMENT);
+            list.Add("    /// <summary>");
+            list.Add("    [Serializable]");
+            list.Add("    public class " + fileName);
+            list.Add("    {");
+
+            foreach (var col in listColumn)
+            {
+                list.Add("        /// <summary>");
+                list.Add("        /// " + col.COLUMN_COMMENT);
+                list.Add("        /// <summary>");
+                list.Add("        public " + SqlDataTypeToCSharp.handle(col.DATA_TYPE) + (col.IS_NULLABLE == "YES" ? "?" : "") + " " + turnHungary2CamelCase.StartChange(col.COLUMN_NAME) + " { get; set; }");
+                list.Add("        ");
+            }
+
+            list.Add("    }");
+            list.Add("}");
+            SaveToFile(PlatformServices.Default.Application.ApplicationBasePath + "Generated\\ViewModel\\", fileName + ".cs", list);
+
+            return resFlag;
+        }
+
         /// <summary>
         /// 生成IBaseServices
         /// </summary>
@@ -248,7 +282,7 @@ REFERENCED_TABLE_NAME = '{1}';
             list.Add("");
             list.Add("namespace " + serviceNamespace + ".Interface");
             list.Add("{");
-            list.Add("    public interface IBaseService<T1,T2>");
+            list.Add("    public interface IBaseService<T1, T2>");
             list.Add("    {");
             list.Add("        Boolean Exists(T2 Id);");
             list.Add("");
@@ -256,11 +290,11 @@ REFERENCED_TABLE_NAME = '{1}';
             list.Add("");
             list.Add("        List<T1> FindAll();");
             list.Add("");
-            list.Add("        Boolean Add(T1 entity);");
+            list.Add("        Boolean Add(T1 model);");
             list.Add("");
-            list.Add("        Boolean Update(T1 entity);");
+            list.Add("        Boolean Update(T1 model);");
             list.Add("");
-            list.Add("        Boolean Save(T1 entity);");
+            list.Add("        Boolean Save(T1 model);");
             list.Add("");
             list.Add("        Boolean Delete(T2 Id);");
             list.Add("");
@@ -298,6 +332,7 @@ REFERENCED_TABLE_NAME = '{1}';
             }
             var tableNameNew = turnHungary2CamelCase.StartChange(tableName);
             var fileName = tableNameNew.Substring(1, tableNameNew.Length - 1);
+            var fileName2 = fileName + "Model";
             var list = new List<string>();
             list.Add("//------------------------------------------------------------------------------");
             list.Add("// 文件名称: " + "I" + fileName + "Service.cs");
@@ -310,14 +345,14 @@ REFERENCED_TABLE_NAME = '{1}';
             list.Add("//     重新生成代码，这些更改将会丢失.");
             list.Add("// </auto-generated>");
             list.Add("//------------------------------------------------------------------------------");
-            list.Add("using " + entityNamespace + ".Generated;");
+            list.Add("using " + entityNamespace + ".ViewModel;");
             list.Add("");
             list.Add("namespace " + serviceNamespace + ".Interface");
             list.Add("{");
             list.Add("    /// <summary>");
             list.Add("    /// 数据库中表[" + tableName + "] 服务层接口文件");
             list.Add("    /// <summary>");
-            list.Add("    public interface I" + fileName + "Service : IBaseService<" + tableNameNew + ", " + string.Join(", ", listPK) + ">");
+            list.Add("    public interface I" + fileName + "Service : IBaseService<" + fileName2 + ", " + string.Join(", ", listPK) + ">");
             list.Add("    {");
             list.Add("    }");
             list.Add("}");
@@ -344,7 +379,10 @@ REFERENCED_TABLE_NAME = '{1}';
             var tableNameNew = turnHungary2CamelCase.StartChange(tableName); // 如 TSysUserInfo
             var fileName = tableNameNew.Substring(1, tableNameNew.Length - 1); // 如 SysUserInfo
             var fileName1 = fileName.Substring(0, 1).ToLower() + fileName.Substring(1, fileName.Length - 1); // 如 sysUserInfo
+            var fileName2 = fileName + "Model";
             var list = new List<string>();
+            var listModel2Entity = colModelChangeEntity(listColumn, "model");
+            var listEntity2Model = colModelChangeEntity(listColumn, "entity");
             list.Add("//------------------------------------------------------------------------------");
             list.Add("// 文件名称: " + fileName + "ServiceImpl.cs");
             list.Add("// 功能描述: 服务层接口实现文件,数据表/视图[" + tableName + "]和映射的实体[" + tableNameNew + "]");
@@ -360,6 +398,7 @@ REFERENCED_TABLE_NAME = '{1}';
             list.Add("using " + entityNamespace + ";");
             list.Add("using " + entityNamespace + ".Conditions;");
             list.Add("using " + entityNamespace + ".Generated;");
+            list.Add("using " + entityNamespace + ".ViewModel;");
             list.Add("using " + serviceNamespace + ".Interface;");
             list.Add("using System.Collections.Generic;");
             list.Add("");
@@ -380,10 +419,14 @@ REFERENCED_TABLE_NAME = '{1}';
             list.Add("");
             list.Add("        #region 自动生成 非必要无需更改");
             list.Add("");
-            list.Add("        public bool Add(" + tableNameNew + " entity)");
+            list.Add("        public bool Add(" + fileName2 + " model)");
             list.Add("        {");
             list.Add("            using (var ctx = _" + fileName1 + "Dao.Begin())");
             list.Add("            {");
+            list.Add("                var entity = new " + tableNameNew + "()");
+            list.Add("                {");
+            list.AddRange(listModel2Entity);
+            list.Add("                };");
             list.Add("                var result = _" + fileName1 + "Dao.Add(entity);");
             list.Add("                return result;");
             list.Add("            }");
@@ -407,46 +450,75 @@ REFERENCED_TABLE_NAME = '{1}';
             list.Add("            }");
             list.Add("        }");
             list.Add("");
-            list.Add("        public List<" + tableNameNew + "> FindAll()");
+            list.Add("        public List<" + fileName2 + "> FindAll()");
             list.Add("        {");
             list.Add("            using (var ctx = _" + fileName1 + "Dao.Begin())");
             list.Add("            {");
-            list.Add("                var result = _" + fileName1 + "Dao.FindAll();");
+            list.Add("                var result = new List<" + fileName2 + ">();");
+            list.Add("                var listEntity = _" + fileName1 + "Dao.FindAll();");
+            list.Add("                foreach (var entity in listEntity)");
+            list.Add("                {");
+            list.Add("                    result.Add(new " + fileName2 + "()");
+            list.Add("                    {");
+            list.AddRange(listEntity2Model);
+            list.Add("                    });");
+            list.Add("                }");
             list.Add("                return result;");
             list.Add("            }");
             list.Add("        }");
             list.Add("");
-            list.Add("        public " + tableNameNew + " Get(" + string.Join(", ", listPK.Select(a => SqlDataTypeToCSharp.handle(a.DATA_TYPE) + " " + a.COLUMN_NAME)) + ")");
+            list.Add("        public " + fileName2 + " Get(" + string.Join(", ", listPK.Select(a => SqlDataTypeToCSharp.handle(a.DATA_TYPE) + " " + a.COLUMN_NAME)) + ")");
             list.Add("        {");
             list.Add("            using (var ctx = _" + fileName1 + "Dao.Begin())");
             list.Add("            {");
-            list.Add("                var result = _" + fileName1 + "Dao.Get(" + string.Join(", ", listPK.Select(a => a.COLUMN_NAME)) + ");");
+            list.Add("                var entity = _" + fileName1 + "Dao.Get(" + string.Join(", ", listPK.Select(a => a.COLUMN_NAME)) + ");");
+            list.Add("                var result = new " + fileName2 + "()");
+            list.Add("                {");
+            list.AddRange(listEntity2Model);
+            list.Add("                };");
             list.Add("                return result;");
             list.Add("            }");
             list.Add("        }");
             list.Add("");
-            list.Add("        public Pager<" + tableNameNew + "> GetPager(BaseCondition condition)");
+            list.Add("        public Pager<" + fileName2 + "> GetPager(BaseCondition condition)");
             list.Add("        {");
             list.Add("            using (var ctx = _" + fileName1 + "Dao.Begin())");
             list.Add("            {");
-            list.Add("                var result = _" + fileName1 + "Dao.GetPager(condition);");
+            list.Add("                var pagerEntity = _" + fileName1 + "Dao.GetPager(condition);");
+            list.Add("                var listModel = new List<" + fileName2 + ">();");
+            list.Add("                foreach (var entity in pagerEntity.Data)");
+            list.Add("                {");
+            list.Add("                    listModel.Add(new " + fileName2 + "()");
+            list.Add("                    {");
+            list.AddRange(listEntity2Model);
+            list.Add("                    });");
+            list.Add("                }");
+            list.Add("                var result = new Pager<" + fileName2 + ">(pagerEntity.PageSize, pagerEntity.PageIndex, pagerEntity.Total, listModel);");
             list.Add("                return result;");
             list.Add("            }");
             list.Add("        }");
             list.Add("");
-            list.Add("        public bool Save(" + tableNameNew + " entity)");
+            list.Add("        public bool Save(" + fileName2 + " model)");
             list.Add("        {");
             list.Add("            using (var ctx = _" + fileName1 + "Dao.Begin())");
             list.Add("            {");
+            list.Add("                var entity = new " + tableNameNew + "()");
+            list.Add("                {");
+            list.AddRange(listModel2Entity);
+            list.Add("                };");
             list.Add("                var result = _" + fileName1 + "Dao.Save(entity);");
             list.Add("                return result;");
             list.Add("            }");
             list.Add("        }");
             list.Add("");
-            list.Add("        public bool Update(" + tableNameNew + " entity)");
+            list.Add("        public bool Update(" + fileName2 + " model)");
             list.Add("        {");
             list.Add("            using (var ctx = _" + fileName1 + "Dao.Begin())");
             list.Add("            {");
+            list.Add("                var entity = new " + tableNameNew + "()");
+            list.Add("                {");
+            list.AddRange(listModel2Entity);
+            list.Add("                };");
             list.Add("                var result = _" + fileName1 + "Dao.Update(entity);");
             list.Add("                return result;");
             list.Add("            }");
@@ -800,10 +872,6 @@ REFERENCED_TABLE_NAME = '{1}';
 
         private static void SaveToFile(string path, string fileName, List<string> list)
         {
-            //if (!File.Exists(path))
-            //{
-            //    File.Create(path);
-            //}
             if (!Directory.Exists(path))
             {
                 Directory.CreateDirectory(path);
@@ -814,6 +882,21 @@ REFERENCED_TABLE_NAME = '{1}';
                 writer.WriteLine(item);
             }
             writer.Close();
+        }
+
+        private static List<string> colModelChangeEntity(List<ColumnInfoModel> listColumn, string varName)
+        {
+            var list = new List<string>();
+
+            var i = 1;
+            foreach (var col in listColumn)
+            {
+                var colName = col.COLUMN_NAME1;
+                list.Add("                    " + colName + " = " + varName + "." + colName + (i != listColumn.Count ? "," : string.Empty));
+                i++;
+            }
+
+            return list;
         }
 
         #endregion
